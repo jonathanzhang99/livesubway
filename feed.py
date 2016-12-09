@@ -3,11 +3,41 @@ import requests
 
 from API_KEY import key
 import gtfs_realtime_pb2 as gtfs
+import transitfeed
 
 MTA_ENDPOINT = "http://datamine.mta.info/mta_esi.php?key={}&feed_id=1" \
     .format(key)
 
 current_feed = None
+
+
+class train_id_hash():
+    trip_hash = {}
+
+    def __init__(self):
+        print "Initializing train_id_hash object..."
+        tt = transitfeed.Loader("./static_transit")
+        tf = tt.Load()
+        print "Finished loading Loader"
+        train_trips = tf.GetTripList()
+        for trip in train_trips:
+            ind = trip.trip_id.rfind(".")
+            if ind == -1:
+                print "Error with tripID"
+                continue
+            line = trip.trip_id[ind - 2] + \
+                "" if trip.trip_id[ind - 1] == "." \
+                else trip.trip_id[ind - 1] + \
+                trip.trip_id[ind + 1]
+            if line not in self.trip_hash:
+                st = trip.GetStopTimes()
+                self.trip_hash[line] = [None] * (len(st) + 1)
+                for train_stop in st:
+                    self.trip_hash[line][(int)(train_stop.stop_sequence)] = \
+                        (train_stop.stop.stop_id, train_stop.stop.stop_name)
+
+    def getPrevStop(self, route_id, stop_sequence):
+        return self.trip_hash[route_id][stop_sequence]
 
 
 def start_timer():
@@ -18,7 +48,7 @@ def feed_timer():
     while True:
         global current_feed
         current_feed = spawn(get_feed).wait()
-        sleep(5)
+        sleep(30)
 
 
 def get_feed():

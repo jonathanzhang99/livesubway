@@ -9,6 +9,8 @@ monkey_patch()
 app = Flask(__name__)
 socketio = SocketIO(app)
 
+_t_hash = feed.train_id_hash()
+
 
 @app.route('/')
 def index():
@@ -18,8 +20,8 @@ def index():
     #     vehicle_id = entity.vehicle.trip.route_id
     #     if ((route_id != "" and route_id == "5") or
     #        (vehicle_id != "" and vehicle_id == "5")):
-    #         entities.append(entity)
-
+    #         entities.append(entity)t
+    print _t_hash.getPrevStop("1", 1)
     return render_template("index.html")
 
 
@@ -51,6 +53,5 @@ if __name__ == "__main__":
     feed_thread = feed.start_timer()
     try:
         socketio.run(app, debug=True)
-
     finally:
         feed_thread.kill()
