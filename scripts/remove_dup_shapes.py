@@ -1,4 +1,4 @@
-shapes = open("static_transit/shapes.txt")
+shapes = open("./static_transit/shapes.txt")
 i = 0
 points = []
 truelines = []
@@ -12,7 +12,7 @@ for lines in shapes:
     else:
         truelines.append(lines)
     i = i + 1
-newfile = open("static_transit/newshapes.txt", 'w+')
+newfile = open("./static_transit/newshapes.txt", 'w+')
 for line in truelines:
     newfile.write(line)
 newfile.close()

@@ -1,11 +1,15 @@
 *.proto
 *_pb2.py
 *.pyc
-static_transit/*
+
 shapes.json
 stops.json
+shape_indices.json
 API_KEY.py
+
 .DS_Store
-.vagrant
 .idea
 .ipynb_checkpoints
+.vagrant
+.vscode
+static_transit
