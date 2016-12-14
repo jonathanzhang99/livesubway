@@ -1,8 +1,8 @@
 from eventlet.greenthread import sleep, spawn
 import requests
-
-from API_KEY import key
 import transitfeed
+from API_KEY import key
+
 import gtfs_realtime_pb2 as gtfs
 
 
