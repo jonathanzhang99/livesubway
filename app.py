@@ -48,16 +48,18 @@ def get_path(shape_id, start, end):
 
 demos = [
     [
-       {
-           "path": [[-73.96411, 40.807722], [-73.958372, 40.815581]],
-           "progress": 0.5,
-           "remaining_time": 10
-       },
-       {
-           "path": get_path("1..S04R", [-73.958372, 40.815581], [-73.96411, 40.807722]),
-           "progress": 0.3,
-           "remaining_time": 15
-       }
+        {
+            "path": [[-73.96411, 40.807722], [-73.958372, 40.815581]],
+            "progress": 0.5,
+            "remaining_time": 10
+        },
+        {
+            "path": get_path("1..S04R",
+                             [-73.958372, 40.815581],
+                             [-73.96411, 40.807722]),
+            "progress": 0.3,
+            "remaining_time": 15
+        }
     ],
     [
         {
