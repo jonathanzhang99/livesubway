@@ -1,3 +1,5 @@
+from collections import namedtuple
+
 from eventlet import monkey_patch
 from flask import Flask, json, jsonify, render_template
 from flask_socketio import SocketIO, emit
@@ -8,13 +10,16 @@ monkey_patch()
 
 app = Flask(__name__)
 socketio = SocketIO(app)
-shapes = json.load(open("shapes.json", "r"))
-shape_indices = json.load(open("shape_indices.json", "r"))
 feed_event = None
+with open("shapes.json", "r") as shapes_f, \
+        open("shape_indices.json", "r") as shape_indices_f:
+    shapes = json.load(shapes_f)
+    shape_indices = json.load(shape_indices_f)
 
 
-def str_coordinate(lon, lat):
-    return "({}, {})".format(lon, lat)
+class Coordinates(namedtuple('NamedTupleCoordinates', ['lon', 'lat'])):
+    def __str__(self):
+        return "({}, {})".format(self.lon, self.lat)
 
 
 def get_path(shape_id, start, end):
@@ -27,9 +32,9 @@ def get_path(shape_id, start, end):
     ----------
     shape_id: str
         The shape ID
-    start: list/tuple
+    start: Coordinates
         GPS coordinates of start point
-    end: list/tuple
+    end: Coordinates
         GPS coordinates of end point
 
     Returns
@@ -38,11 +43,8 @@ def get_path(shape_id, start, end):
         Array of GPS coordinates along shape from start point to end point
     """
 
-    assert shapes, "shapes.json not loaded into memory."
-    assert shape_indices, "shape_indices.json not loaded into memory."
-
-    start_index = shape_indices[shape_id][str_coordinate(start[0], start[1])]
-    end_index = shape_indices[shape_id][str_coordinate(end[0], end[1])]
+    start_index = shape_indices[shape_id][str(start)]
+    end_index = shape_indices[shape_id][str(end)]
 
     return shapes[shape_id]["points"][start_index:end_index + 1]
 
@@ -55,8 +57,8 @@ demos = [
         },
         {
             "path": get_path("1..S04R",
-                             [-73.958372, 40.815581],
-                             [-73.96411, 40.807722]),
+                             Coordinates(-73.958372, 40.815581),
+                             Coordinates(-73.96411, 40.807722)),
             "progress": 0.3,
             "remaining_time": 15
         }
@@ -85,7 +87,6 @@ demos = [
             "remaining_time": 15
         }
     ]
-
 ]
 
 
@@ -109,10 +110,9 @@ def map_json():
     #       sequence: number of points,
     #       color: route color
     #       points: [[lon, lat],...,]}
-
-    json_input = json.load(open("shapes.json", "r"))
-
-    return jsonify(json_input)
+    with open("shapes.json", "r") as shapes_f:
+        json_input = json.load(shapes_f)
+        return jsonify(json_input)
 
 
 @app.route('/stops_json')
@@ -123,8 +123,9 @@ def stops_json():
     #       lon : float,
     #       name : string
     #   }
-    json_input = json.load(open("stops.json", "r"))
-    return jsonify(json_input)
+    with open("stops.json", "r") as stops_f:
+        json_input = json.load(stops_f)
+        return jsonify(json_input)
 
 
 @socketio.on('get_feed')
