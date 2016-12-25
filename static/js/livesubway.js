@@ -1,204 +1,242 @@
 
-function log(msg){
-	console.log(msg);
+function log(msg) {
+  console.log(msg);
 }
 
-mapboxgl.accessToken="pk.eyJ1Ijoiam9uYXRoYW56aGFuZzk5IiwiYSI6ImNpdjQzMGZjazAwMmsydHJpbW03ZTN4cnEifQ.HD9WQRZXTUG6ygjZ8VWxTg";
-var map = new mapboxgl.Map({
-	container: "subwaymap",
-	style: 'mapbox://styles/mapbox/light-v9',
-	//maxBounds: [[-73.995130, 40.79896], [-73.97, 40.76]],
-	center: [-73.983393, 40.788552],
-	dragRotate: false,
-	zoom: 10.84,
+function renderCars(map, subwayCars) {
+  const speed = 60;
+  const duration = 30;
+  const totalFrames = speed * duration;
+  const points = [];
+  const allAnimSteps = [];
+  $.each(subwayCars, (index, subwayCar) => {
+    const line = {
+      type: 'Feature',
+      geometry: {
+        type: 'LineString',
+        coordinates: subwayCar.path,
+      },
+    };
+
+    const distance = turf.lineDistance(line, 'miles');
+    const distanceTraveled = subwayCar.progress * distance;
+    const remainingDistance = distance - distanceTraveled;
+    const animSteps = [];
+    const animSpeed = speed * subwayCar.remaining_time;
+    const animFrames = speed * Math.min(duration, subwayCar.remaining_time);
+    const point = turf.along(line, distanceTraveled, 'miles');
+
+    points.push(point);
+
+    for (let i = 0; i < animFrames; i += 1) {
+      const step = (i / animSpeed) * remainingDistance;
+      const segment = turf.along(line, distanceTraveled + step, 'miles');
+      animSteps.push(segment.geometry.coordinates);
+    }
+
+    if (animFrames < totalFrames) {
+      for (let i = animFrames; i < totalFrames; i += 1) {
+        const segment = turf.along(line, distance, 'miles');
+        animSteps.push(segment.geometry.coordinates);
+      }
+    }
+
+    allAnimSteps.push(animSteps);
+  });
+
+  const source = {
+    type: 'geojson',
+    data: {
+      type: 'FeatureCollection',
+      features: points,
+    },
+  };
+
+  if (map.getSource('subwayCars') === undefined) {
+    map.addSource('subwayCars', source);
+  } else {
+    map.getSource('subwayCars').setData(source.data);
+  }
+
+  if (map.getLayer('subwayCars') === undefined) {
+    map.addLayer({
+      id: 'subwayCars',
+      type: 'circle',
+      source: 'subwayCars',
+      paint: {
+        'circle-radius': 4,
+        'circle-color': '#000000',
+      },
+    });
+  }
+
+  const interval = 1000 / speed;
+  const start = Date.now();
+  let then = start;
+  let counter = 0;
+
+  function animate() {
+    if (counter / interval < (speed * duration) - 1) {
+      requestAnimationFrame(animate);
+
+      const now = Date.now();
+      const elapsed = now - then;
+      then = now;
+
+      for (let i = 0; i < points.length; i += 1) {
+        const point = points[i];
+        const animSteps = allAnimSteps[i];
+        point.geometry.coordinates = animSteps[Math.round(counter / interval)];
+      }
+
+      map.getSource('subwayCars').setData({
+        type: 'FeatureCollection',
+        features: points,
+      });
+
+      counter += elapsed;
+    } else {
+      const end = Date.now();
+      const animTime = ((end - start) / 1000).toString();
+      log(`Time elapsed for animation: ${animTime}`);
+    }
+  }
+
+  animate();
+}
+
+$(document).ready(() => {
+  mapboxgl.accessToken = 'pk.eyJ1Ijoiam9uYXRoYW56aGFuZzk5IiwiYSI6ImNpdjQzMGZjazAwMmsydHJpbW03ZTN4cnEifQ.HD9WQRZXTUG6ygjZ8VWxTg';
+  const map = new mapboxgl.Map({
+    container: 'subwaymap',
+    style: 'mapbox://styles/mapbox/light-v9',
+    center: [-73.983393, 40.788552],
+    dragRotate: false,
+    zoom: 10.84,
+  });
+
+  map.on('load', () => {
+    const socket = io.connect('localhost:5000');
+
+    const routeIDsList = [
+      'route-1..N03R',
+      'route-5..S03R',
+      'route-A..N04R',
+      'route-N..N20R',
+      'route-D..N05R',
+      'route-B..N46R',
+    ];
+
+    $.when((
+      $.getJSON('/map_json', (mapData) => {
+        /**
+         * This is used because we have a second loop
+         * that only adds layers for the chosen routes:
+         * we're only displaying a few for performance reasons
+         * until we can optimize the rendering.
+         */
+        const tempColorMap = {};
+
+        $.each(mapData, (mapKey, mapVal) => {
+          const routeID = 'route-'.concat(mapKey);
+          tempColorMap[routeID] = mapVal.color;
+
+          map.addSource(routeID, {
+            type: 'geojson',
+            data: {
+              type: 'Feature',
+              properties: {
+                color: mapVal.color,
+              },
+              geometry: {
+                type: 'LineString',
+                coordinates: mapVal.points,
+              },
+            },
+          });
+        });
+
+        $.each(routeIDsList, (index, key) => {
+          map.addLayer({
+            id: key,
+            type: 'line',
+            source: key,
+            layout: {
+              'line-join': 'round',
+              'line-cap': 'round',
+            },
+            paint: {
+              'line-color': tempColorMap[key],
+              'line-width': 3,
+            },
+          });
+        });
+
+        $.getJSON('/stops_json', (stopData) => {
+          const stopsFeatureData = $.map(stopData, (stopVal) => {
+            const name = stopVal.name;
+            const coordinates = stopVal.coordinates.join(', ');
+            const descriptionHTML = `<strong>${name}</strong><br><p>${coordinates}</p>`;
+            const stopSource = {
+              type: 'Feature',
+              properties: {
+                description: descriptionHTML,
+              },
+              geometry: {
+                type: 'Point',
+                coordinates: stopVal.coordinates,
+              },
+            };
+
+            return stopSource;
+          });
+
+          map.addSource('stops', {
+            type: 'geojson',
+            data: {
+              type: 'FeatureCollection',
+              features: stopsFeatureData,
+            },
+          });
+
+          map.addLayer({
+            id: 'stops',
+            type: 'circle',
+            source: 'stops',
+            paint: {
+              'circle-radius': {
+                stops: [[11, 3], [14, 4], [16, 5]],
+              },
+              'circle-color': '#ff3300',
+            },
+          });
+        });
+      })
+    )).then(() => {
+      socket.on('feed', (subwayCars) => {
+        renderCars(map, subwayCars);
+      });
+    }).then(() => {
+      socket.emit('get_feed');
+    });
+
+    const popup = new mapboxgl.Popup({
+      closeButton: false,
+      closeOnClick: false,
+    });
+
+    map.on('mousemove', (e) => {
+      const features = map.queryRenderedFeatures(e.point, { layers: ['stops'] });
+      map.getCanvas().style.cursor = (features.length) ? 'pointer' : '';
+      if (!features.length) {
+        popup.remove();
+        return;
+      }
+
+      const feature = features[0];
+      popup.setLngLat(feature.geometry.coordinates)
+          .setHTML(feature.properties.description)
+          .addTo(map);
+    });
+  });
 });
-
-
-map.on('load', function () {
-
-	var route_ids = {};
-	var color_cnt = 0;
-	$.getJSON("/map_json", function(mapdata){
-	$.getJSON("/stops_json", function(stopdata){
-
-		$.each( mapdata, function(mapkey, mapval){
-			var features = [];
-			var srcmap = {};
-			var srcstop = {};
-			var route_id ="route-".concat(mapkey);
-			route_ids[route_id] = 0;
-				
-			map.addSource(route_id,{
-				"type" : "geojson",
-				"data" : {
-					"type" : "Feature",
-					"properties": {
-						"color":mapval.color
-					},
-					"geometry": {
-						"type" : "LineString",
-						"coordinates" : mapval.points
-					}
-				}
-			});
-		});
-
-
-
-			//log(route_ids);
-		route_ids["route-1..N03R"] = 1;
-		route_ids["route-1..N06R"] = 1;
-
-		route_ids_list = ["route-1..N03R",
-						  "route-5..S03R", 
-						  "route-A..N04R", 
-						  "route-N..N20R",
-						  "route-D..N05R",
-						  "route-B..N46R"
-						  ];
-		//route_ids["route-1..N05R"] = 1;
-		$.each( route_ids_list, function(index, key){
-			//if (val === 1){
-				log(key);
-				log(map.getSource(key));
-				map.addLayer({
-					"id":key,
-					"type":"line",
-					"source":key,
-					"layout":{
-						"line-join": "round",
-						"line-cap": "round"
-					},
-					"paint" : {
-						"line-color": map.getSource(key)._data.properties.color,
-						"line-width": 3
-
-					}
-				});
-				color_cnt += 1;	
-			//}
-		});
-		var stops_feature_data = [];
-		$.each( stopdata, function(stopkey, stopval){
-			var stopid = "stop-".concat(stopkey);
-			var descriptionHTML = "<strong>"+stopval.name+"</strong><br><p>[" + stopval.lon + ", " + stopval.lat + "]</p>";
-			stop_source = {
-				"type": "Feature",
-				"properties": {
-					"description": descriptionHTML
-				},
-				"geometry": {
-					"type": "Point",
-					"coordinates": [stopval.lon, stopval.lat]
-				}
-
-			};
-			stops_feature_data.push(stop_source);
-
-			
-
-		});
-		map.addSource("stops", {
-			"type":"geojson",
-			"data":{
-				"type": "FeatureCollection",
-				"features": stops_feature_data
-			}
-		});
-		map.addLayer({
-			"id" : "stops",
-			"type" : "circle",
-			"source": "stops",
-			"paint":{
-				"circle-radius" : {
-					stops:[[11, 3], [14, 4], [16, 5]]
-				},
-				"circle-color" : "#ff3300"
-			}
-		});
-	
-		var point = {
-		"type": "FeatureCollection",
-		"features" : [{
-			"type":"Feature",
-			"geometry": {
-				"type": "Point",
-				"coordinates": [-74.013664, 40.702068]
-				}
-			}]
-		};
-		map.addSource("subway_car", {
-			"type": "geojson",
-			"data": point
-		});
-		map.addLayer({
-			"id":"subway_car",
-			"type":"circle",
-			"source":"subway_car",
-			"paint":{
-				"circle-radius" : 4,
-				"circle-color" : "#000000"
-			}
-		});
-		var subway_cars = {};
-		$.each(route_ids_list, function(key){
-			subway_cars["p_"+key] = [];
-			
-			var src = map.getSource(key);
-
-		});
-		var key = route_ids_list[0];
-		var src = map.getSource(key);
-		var ldistance =  turf.lineDistance(src._data, "miles");
-		var timediv = 3000;
-		var anim_steps = [];
-		for (var i = 0; i < timediv; i++){
-			var segment = turf.along(src._data, i /timediv * ldistance, "miles");
-			anim_steps.push(segment.geometry.coordinates);
-		}	
-		log(anim_steps);
-		var counter = 0;
-		function animate(){
-			point.features[0].geometry.coordinates = anim_steps[counter];
-			//log(point);
-			map.getSource('subway_car').setData(point);
-
-			if (counter < timediv - 1){
-				requestAnimationFrame(animate);
-			}
-			counter = counter + 1;
-		}
-
-		animate();
-
-		
-	}); // end of stops_json
-	}); // end of map_json
-	var popup = new mapboxgl.Popup({
-		closeButton:false,
-		closeOnClick: false
-	});
-
-
-	
-
-
-	map.on('mousemove', function(e){
-		var features = map.queryRenderedFeatures(e.point, {layers: ["stops"]});
-		map.getCanvas().style.cursor = (features.length) ? "pointer": "";
-		if (!features.length){
-			popup.remove();
-			return;
-		}
-
-		var feature = features[0];
-		popup.setLngLat(feature.geometry.coordinates)
-		     .setHTML(feature.properties.description)
-		     .addTo(map);
-
-	});
-
-});
-
-
-
