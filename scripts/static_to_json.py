@@ -7,7 +7,6 @@ import transitfeed
 def str_coordinate(lon, lat):
     return "({}, {})".format(lon, lat)
 
-
 print "Loading static transit information..."
 loader = transitfeed.Loader("./static_transit")
 schedule = loader.Load()
