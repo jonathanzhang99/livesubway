@@ -106,7 +106,7 @@ function renderCars(map, subwayCars) {
 }
 
 $(document).ready(() => {
-  mapboxgl.accessToken = 'pk.eyJ1Ijoiam9uYXRoYW56aGFuZzk5IiwiYSI6ImNpdjQzMGZjazAwMmsydHJpbW03ZTN4cnEifQ.HD9WQRZXTUG6ygjZ8VWxTg';
+  mapboxgl.accessToken = ACCESSTOKEN;
   const map = new mapboxgl.Map({
     container: 'subwaymap',
     style: 'mapbox://styles/mapbox/light-v9',
