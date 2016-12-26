@@ -106,7 +106,7 @@ function renderCars(map, subwayCars) {
 }
 
 $(document).ready(() => {
-  mapboxgl.accessToken = mapboxKey;
+  mapboxgl.accessToken = ACCESSTOKEN;
   const map = new mapboxgl.Map({
     container: 'subwaymap',
     style: 'mapbox://styles/mapbox/light-v9',
