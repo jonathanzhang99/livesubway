@@ -14,14 +14,16 @@ Live Subway is a project to provide real-time visualization of the NYC subways, 
     - [Google GTFS Realtime Proto](https://developers.google.com/transit/gtfs-realtime/gtfs-realtime.proto)
     - [MTA Subway Proto](http://datamine.mta.info/sites/all/files/pdfs/nyct-subway.proto.txt) (remove the `.txt` extension)
 5. run the following commands in your terminal:
+
     ```
     protoc --python_out=[WORKING_DIRECTORY] gtfs-realtime.proto
     protoc --python_out=[WORKING_DIRECTORY] nyct-subway.proto
     ```
 6. create `API_KEYS.py` and add the following lines:
+
     ```python
-    mta_key = [MTA key]
-    mapbox_key = [Mapbox GL JS key]
+    mta_key = '[MTA key]'
+    mapbox_key = '[Mapbox GL JS key]'
     ```
 7. create a `static_transit` directory in your root directory and add the static `.txt` files 
 8. run `python scripts/static_to_json.py` if needed to generate JSON files containing useful static transit data
