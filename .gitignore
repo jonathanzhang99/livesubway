@@ -2,10 +2,11 @@
 *_pb2.py
 *.pyc
 
+.eslintrc.json
 shapes.json
 stops.json
 shape_indices.json
-API_KEY.py
+API_KEYS.py
 
 .DS_Store
 .idea

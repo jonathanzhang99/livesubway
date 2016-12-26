@@ -1,11 +1,11 @@
 from eventlet.greenthread import sleep, spawn
 import requests
 
-from API_KEY import key
+from API_KEYS import mta_key
 import gtfs_realtime_pb2 as gtfs
 
 MTA_ENDPOINT = "http://datamine.mta.info/mta_esi.php?key={}&feed_id=1" \
-    .format(key)
+    .format(mta_key)
 
 current_feed = None
 
