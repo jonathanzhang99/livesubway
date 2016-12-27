@@ -4,6 +4,7 @@ from eventlet import monkey_patch
 from flask import Flask, json, jsonify, render_template
 from flask_socketio import SocketIO, emit
 
+from API_KEYS import mapbox_key
 import feed
 
 monkey_patch()
@@ -100,9 +101,10 @@ def index():
     #     vehicle_id = entity.vehicle.trip.route_id
     #     if ((route_id != "" and route_id == "5") or
     #        (vehicle_id != "" and vehicle_id == "5")):
-    #         entities.append(entity)t
-    print _t_hash.getPrevStop("1", 1)
-    return render_template("index.html")
+
+    #         entities.append(entity)
+
+    return render_template("index.html", mapbox_key=mapbox_key)
 
 
 @app.route('/map_json')
