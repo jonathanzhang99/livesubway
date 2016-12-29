@@ -3,9 +3,6 @@
 *.pyc
 
 .eslintrc.json
-shapes.json
-stops.json
-shape_indices.json
 API_KEYS.py
 
 .DS_Store
@@ -14,3 +11,4 @@ API_KEYS.py
 .vagrant
 .vscode
 static_transit
+static/json
