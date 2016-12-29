@@ -27,15 +27,52 @@ class Segment(namedtuple('Segment', ['start', 'end'])):
 
 
 def get_path(start, end):
-    edge = graph["edges"][str(Segment(start, end))]
+    """Returns sequence of points between two stops.
 
-    shape_id = edge.shape_id
-    start_index, end_index = sorted((edge.start_index, edge.end_index))
+    The two stops need to be adjacent stops on any particular
+    trip (local or express).
 
-    relative_orientation = graph["vertices"][start][end]
-    shape_orientation = 1 if start_index == edge.start_index else -1
+    Moreover, in the graph JSON file, only one edge for each
+    segment of stop endpoints is stored; thus, in order to
+    return the correct sequence of points, we must keep track
+    of two things. One, the relative orientation of the
+    requested stops with the segment of stops stored in the graph,
+    and two, the actual orientation of the stored edge with the
+    shape. In particular, the stored edge may represent a path
+    that goes northbound (since edges are represented as a
+    start/end structure and are thus "directed"), but the shape
+    that is being used for this edge may actually be southbound.
 
-    points = shapes[shape_id][start_index:end_index + 1]
+    Thus, we store these orientations as +/-1, and simply compose
+    the orientations, so that at most one "flip" of the sequence of
+    points from shapes.json is needed.
+
+    Arguments
+    ---------
+    start: str
+        Station ID of start stop (must be a parent station)
+    end: str
+        Station ID of end stop (must be a parent station)
+
+    Returns
+    -------
+    list[[float, float]]
+        List of coordinates in the form [lon, lat]
+    """
+    edges = graph["edges"]
+    if str(Segment(start, end)) in edges:
+        edge = edges[str(Segment(start, end))]
+        relative_orientation = 1
+
+    else:
+        edge = edges[str(Segment(end, start))]
+        relative_orientation = -1
+
+    shape_id = edge["shape_id"]
+    start_index, end_index = sorted((int(edge["start_index"]),
+                                     int(edge["end_index"])))
+    shape_orientation = 1 if start_index == int(edge["start_index"]) else -1
+    points = shapes[shape_id]["points"][start_index:end_index + 1]
 
     if relative_orientation * shape_orientation == 1:
         return points
@@ -91,21 +128,24 @@ def index():
 @app.route('/map_json')
 def map_json():
     # Documentation for shapes.json:
-    #   route_id : {
-    #       sequence: number of points,
-    #       color: route color
-    #       points: [[lon, lat],...,]}
+    # shape_id: {
+    #      sequence: number of points,
+    #      color: route color,
+    #      points: [[lon, lat],...,]
+    # }
     return jsonify(shapes)
 
 
 @app.route('/stops_json')
 def stops_json():
     # Documentation for stops.json:
-    #   stop_id : {
-    #       lat : float,
-    #       lon : float,
-    #       name : string
-    #   }
+    # stop_id: {
+    #      coordinates: {
+    #          lat: latitude,
+    #          lon: longitude
+    #      },
+    #      name: name
+    # }
     return jsonify(stops)
 
 
