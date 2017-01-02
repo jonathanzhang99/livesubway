@@ -3,7 +3,6 @@ const DURATION = 30;
 const TOTALFRAMES = SPEED * DURATION;
 const INTERVAL = 1000 / SPEED;
 const START = Date.now();
-const ACCESTOKEN = 'pk.eyJ1Ijoiam9uYXRoYW56aGFuZzk5IiwiYSI6ImNpdjQzMGZjazAwMmsydHJpbW03ZTN4cnEifQ.HD9WQRZXTUG6ygjZ8VWxTg';
 
 const MAPBOX = {
   container: 'subwaymap',
@@ -120,7 +119,7 @@ function renderCars(map, subwayCars) {
 }
 
 $(document).ready(() => {
-  mapboxgl.accessToken = ACCESTOKEN;
+  mapboxgl.accessToken = ACCESSTOKEN;
 
   const map = new mapboxgl.Map(MAPBOX);
 
