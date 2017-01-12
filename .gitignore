@@ -5,6 +5,7 @@
 .eslintrc.json
 API_KEYS.py
 
+.cache
 .DS_Store
 .idea
 .ipynb_checkpoints
