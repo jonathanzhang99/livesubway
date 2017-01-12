@@ -1,4 +1,5 @@
 import cPickle as pickle
+import os
 
 from argparse import ArgumentParser
 from bisect import bisect_left
@@ -13,6 +14,11 @@ import transitfeed
 JSON_DIR = "static/json/"
 PICKLE_DIR = ".cache/"
 STATIC_TRANSIT_DIR = "static_transit/"
+
+if not os.path.isdir(JSON_DIR):
+    os.makedirs(JSON_DIR)
+if not os.path.isdir(PICKLE_DIR):
+    os.makedirs(PICKLE_DIR)
 
 Segment = namedtuple('Segment', ['start', 'end'])
 Edge = namedtuple('Edge', ['shape_id', 'start_index', 'end_index'])
