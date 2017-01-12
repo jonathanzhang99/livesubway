@@ -376,12 +376,33 @@ class PrevStops:
             stop = self._all_prev_stops[stop_id]
         # If the stop ID is not present, perhaps the car has switched
         # to another route; see the comments for the ROUTE_GROUPS constant
-        # at the top
+        # at the top. Unfortunately this isn't a perfect method, since it
+        # does not necessarily correctly determine what the actual route it
+        # switched to, but this information is not necessarily known just
+        # from the vehicle itself (one needs to look either at live trip
+        # updates on the feed or for live service alerts). Thus we simply
+        # find the first match and break.
         else:
+            alternative_found = False
             for route in ROUTE_GROUP_MAPPING[route]:
                 stop_id = StopID(route, vehicle.stop_id)
                 if stop_id in self._all_prev_stops:
                     stop = self._all_prev_stops[stop_id]
+                    alternative_found = True
+                    break
+
+            # If a stop ID is still not found, we search all possible routes;
+            # this may happen in case of service changes due to maintenance
+            # or other problems in the subway. Unfortunately, similarly to
+            # above, this is not a perfect method, since we simply find the
+            # first match and break.
+            if not alternative_found:
+                for route_group in ROUTE_GROUPS:
+                    for route in route_group:
+                        stop_id = StopID(route, vehicle.stop_id)
+                        if stop_id in self._all_prev_stops:
+                            stop = self._all_prev_stops[stop_id]
+                            break
 
         # If vehicle is at the beginning of its trip, there is
         # obviously no previous stop
