@@ -56,7 +56,7 @@ ROUTE_GROUPS = [
 ]
 ROUTE_GROUP_MAPPING = {
     route: route_group
-    for route_group in zip(*ROUTE_GROUPS)
+    for route_group in ROUTE_GROUPS
     for route in route_group
 }
 
@@ -1006,7 +1006,6 @@ def write_static_files(args):
     for file, parse_function in PARSE_FUNCTIONS.iteritems():
         if not getattr(args, file):
             print "Skipping {}.".format(file)
-
         else:
             print "Writing {}...".format(file)
             parse_function(schedule)
