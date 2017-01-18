@@ -61,7 +61,7 @@ function renderCars(map, subwayCars) {
       let distance = d;
 
       if (i < animFrames) {
-        distance = distanceTraveled + (i / animSpeed) * remainingDistance;
+        distance = dT + (i / animSpeed) * remainingDistance;
       }
 
       const segment = turf.along(line, distance, 'miles');
@@ -94,7 +94,7 @@ function renderCars(map, subwayCars) {
     if (counter / INTERVAL < (SPEED * DURATION) - 1) {
       requestAnimationFrame(animate);
 
-      const elapsed = Date.now() - start;
+      const elapsed = Date.now() - START;
 
       points.forEach((point, i) => {
         const animSteps = allAnimSteps[i];
@@ -111,7 +111,7 @@ function renderCars(map, subwayCars) {
     } else {
       const animTime = ((Date.now() - START) / 1000).toString();
 
-      console.log(`Time elapsed for animation: ${animTime}`);
+      console.log(`Time elapssed for animation: ${animTime}`);
     }
   }
 
@@ -136,7 +136,7 @@ $(document).ready(() => {
          */
         const tempColorMap = {};
 
-        mapData.forEach((mapKey, mapVal) => {
+        Object.entries(mapData).forEach(([mapKey, mapVal]) => {
           const routeID = 'route-'.concat(mapKey);
           tempColorMap[routeID] = mapVal.color;
 
@@ -155,7 +155,7 @@ $(document).ready(() => {
           });
         });
 
-        ROUTEIDS.forEach((index, key) => {
+        ROUTEIDS.forEach((key, index) => {
           map.addLayer({
             id: key,
             type: 'line',
@@ -172,7 +172,7 @@ $(document).ready(() => {
         });
 
         $.getJSON('/stops_json', stopData => {
-          const stopsFeatureData = stopData.map(stopVal => {
+          const stopsFeatureData = Object.entries(stopData).map(([_, stopVal]) => {
             const name = stopVal.name;
             const coordinates = stopVal.coordinates.join(', ');
             const descriptionHTML = `<strong>${name}</strong><br><p>${coordinates}</p>`;
@@ -214,7 +214,8 @@ $(document).ready(() => {
       })
     )).then(() => {
       socket.on('feed', subwayCars => {
-        renderCars(map, subwayCars);
+        console.log(subwayCars);
+        // renderCars(map, subwayCars);
       });
     }).then(() => {
       socket.emit('get_feed');
