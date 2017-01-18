@@ -1,53 +1,30 @@
-from collections import namedtuple
+import cPickle as pickle
 
 from eventlet import monkey_patch
 from flask import Flask, json, jsonify, render_template
 from flask_socketio import SocketIO, emit
 
 from API_KEYS import mapbox_key
+from static import Edge, PrevStops, Segment, Stop, StopGraph, StopID  # noqa: F401
+
 import feed
 
 monkey_patch()
 
+JSON_DIR = "static/json/"
+PICKLE_DIR = ".cache/"
+
 app = Flask(__name__)
 socketio = SocketIO(app)
 feed_event = None
-with open("shapes.json", "r") as shapes_f, \
-        open("shape_indices.json", "r") as shape_indices_f:
+with open(PICKLE_DIR + "graph.pkl", "rb") as graph_f, \
+        open(PICKLE_DIR + "prev_stops.pkl", "rb") as prev_stops_f, \
+        open(JSON_DIR + "shapes.json", "r") as shapes_f, \
+        open(JSON_DIR + "stops.json", "r") as stops_f:
+    graph = pickle.load(graph_f)
+    prev_stops = pickle.load(prev_stops_f)
     shapes = json.load(shapes_f)
-    shape_indices = json.load(shape_indices_f)
-
-
-class Coordinates(namedtuple('NamedTupleCoordinates', ['lon', 'lat'])):
-    def __str__(self):
-        return "({}, {})".format(self.lon, self.lat)
-
-
-def get_path(shape_id, start, end):
-    """
-    Returns the GPS coordinates of segment of a given shape, in accordance
-    with the coordinates provided in the GTFS shapes.txt. GPS coordinates
-    are in the format (lon, lat)
-
-    Parameters
-    ----------
-    shape_id: str
-        The shape ID
-    start: Coordinates
-        GPS coordinates of start point
-    end: Coordinates
-        GPS coordinates of end point
-
-    Returns
-    -------
-    list[list(float, float)]
-        Array of GPS coordinates along shape from start point to end point
-    """
-
-    start_index = shape_indices[shape_id][str(start)]
-    end_index = shape_indices[shape_id][str(end)]
-
-    return shapes[shape_id]["points"][start_index:end_index + 1]
+    stops = json.load(stops_f)
 
 demos = [
     [
@@ -57,9 +34,7 @@ demos = [
             "remaining_time": 10
         },
         {
-            "path": get_path("1..S04R",
-                             Coordinates(-73.958372, 40.815581),
-                             Coordinates(-73.96411, 40.807722)),
+            "path": graph.get_path("118", "119", shapes),
             "progress": 0.3,
             "remaining_time": 15
         }
@@ -95,41 +70,31 @@ _t_hash = feed.train_id_hash()
 
 @app.route('/')
 def index():
-    # entities = []
-    # for entity in feed.current_feed.entity:
-    #     route_id = entity.trip_update.trip.route_id
-    #     vehicle_id = entity.vehicle.trip.route_id
-    #     if ((route_id != "" and route_id == "5") or
-    #        (vehicle_id != "" and vehicle_id == "5")):
-
-    #         entities.append(entity)
-
     return render_template("index.html", mapbox_key=mapbox_key)
 
 
 @app.route('/map_json')
 def map_json():
     # Documentation for shapes.json:
-    #   route_id : {
-    #       sequence: number of points,
-    #       color: route color
-    #       points: [[lon, lat],...,]}
-    with open("shapes.json", "r") as shapes_f:
-        json_input = json.load(shapes_f)
-        return jsonify(json_input)
+    # shape_id: {
+    #      sequence: number of points,
+    #      color: route color,
+    #      points: [[lon, lat],...,]
+    # }
+    return jsonify(shapes)
 
 
 @app.route('/stops_json')
 def stops_json():
     # Documentation for stops.json:
-    #   stop_id : {
-    #       lat : float,
-    #       lon : float,
-    #       name : string
-    #   }
-    with open("stops.json", "r") as stops_f:
-        json_input = json.load(stops_f)
-        return jsonify(json_input)
+    # stop_id: {
+    #      coordinates: {
+    #          lat: latitude,
+    #          lon: longitude
+    #      },
+    #      name: name
+    # }
+    return jsonify(stops)
 
 
 @socketio.on('get_feed')
