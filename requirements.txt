@@ -24,6 +24,7 @@ python-engineio==1.1.0
 python-socketio==1.6.1
 requests==2.12.1
 six==1.10.0
+simplejson==3.10.0
 template-remover==0.1.9
 transitfeed==1.2.15-blah
 Werkzeug==0.11.11

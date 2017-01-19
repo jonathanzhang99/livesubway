@@ -3,14 +3,13 @@
 *.pyc
 
 .eslintrc.json
-shapes.json
-stops.json
-shape_indices.json
 API_KEYS.py
 
+.cache
 .DS_Store
 .idea
 .ipynb_checkpoints
 .vagrant
 .vscode
 static_transit
+static/json
