@@ -1,47 +1,69 @@
+const SPEED = 60;
+const DURATION = 30;
+const TOTALFRAMES = SPEED * DURATION;
+const INTERVAL = 1000 / SPEED;
 
-function log(msg) {
-  console.log(msg);
-}
+const MAPBOX = {
+  container: 'subwaymap',
+  style: 'mapbox://styles/mapbox/light-v9',
+  center: [-73.983393, 40.788552],
+  dragRotate: false,
+  zoom: 10.84,
+};
+
+const LAYER = {
+  id: 'subwayCars',
+  type: 'circle',
+  source: 'subwayCars',
+  paint: {
+    'circle-radius': 4,
+    'circle-color': '#000000',
+  },
+};
+
+const ROUTEIDS = [
+  'route-1..N03R',
+  'route-5..S03R',
+  'route-A..N04R',
+  'route-N..N20R',
+  'route-D..N05R',
+  'route-B..N46R',
+];
 
 function renderCars(map, subwayCars) {
-  const speed = 60;
-  const duration = 30;
-  const totalFrames = speed * duration;
-  const points = [];
-  const allAnimSteps = [];
-  $.each(subwayCars, (index, subwayCar) => {
+  const START = Date.now();
+  const lineTuple = subwayCars.map(subwayCar => {
     const line = {
-      type: 'Feature',
-      geometry: {
-        type: 'LineString',
-        coordinates: subwayCar.path,
+      type : 'Feature',
+      geometry : {
+        type : 'LineString',
+        coordinates : subwayCar.path,
       },
     };
 
     const distance = turf.lineDistance(line, 'miles');
     const distanceTraveled = subwayCar.progress * distance;
-    const remainingDistance = distance - distanceTraveled;
-    const animSteps = [];
-    const animSpeed = speed * subwayCar.remaining_time;
-    const animFrames = speed * Math.min(duration, subwayCar.remaining_time);
-    const point = turf.along(line, distanceTraveled, 'miles');
 
-    points.push(point);
+    return [line, distance, distanceTraveled, subwayCar.remaining_time];
+  });
 
-    for (let i = 0; i < animFrames; i += 1) {
-      const step = (i / animSpeed) * remainingDistance;
-      const segment = turf.along(line, distanceTraveled + step, 'miles');
-      animSteps.push(segment.geometry.coordinates);
-    }
+  const points = lineTuple.map(x => {
+    return turf.along(x[0], x[2], 'miles');
+  });
 
-    if (animFrames < totalFrames) {
-      for (let i = animFrames; i < totalFrames; i += 1) {
-        const segment = turf.along(line, distance, 'miles');
-        animSteps.push(segment.geometry.coordinates);
-      }
-    }
+  const allAnimSteps = lineTuple.map(x => {
+    const [line, d, dT, rT] = x;
+    const remainingDistance = d - dT;
+    const animSpeed = SPEED * rT;
+    const animFrames = SPEED * Math.min(DURATION, rT);
 
-    allAnimSteps.push(animSteps);
+    return [...Array(TOTALFRAMES).keys()].map((x, i) => {
+      const distance = i < animFrames ? dT + (i / animSpeed) * remainingDistance : d;
+
+      const segment = turf.along(line, distance, 'miles');
+
+      return segment.geometry.coordinates;
+    });
   });
 
   const source = {
@@ -59,46 +81,28 @@ function renderCars(map, subwayCars) {
   }
 
   if (map.getLayer('subwayCars') === undefined) {
-    map.addLayer({
-      id: 'subwayCars',
-      type: 'circle',
-      source: 'subwayCars',
-      paint: {
-        'circle-radius': 4,
-        'circle-color': '#000000',
-      },
-    });
+    map.addLayer(LAYER);
   }
 
-  const interval = 1000 / speed;
-  const start = Date.now();
-  let then = start;
-  let counter = 0;
-
   function animate() {
-    if (counter / interval < (speed * duration) - 1) {
+    const elapsed = Date.now() - START;
+    if (elapsed / INTERVAL < (SPEED * DURATION) - 1) {
       requestAnimationFrame(animate);
 
-      const now = Date.now();
-      const elapsed = now - then;
-      then = now;
-
-      for (let i = 0; i < points.length; i += 1) {
-        const point = points[i];
+      points.forEach((point, i) => {
         const animSteps = allAnimSteps[i];
-        point.geometry.coordinates = animSteps[Math.round(counter / interval)];
-      }
+
+        point.geometry.coordinates = animSteps[Math.round(elapsed / INTERVAL)];
+      });
 
       map.getSource('subwayCars').setData({
         type: 'FeatureCollection',
         features: points,
       });
-
-      counter += elapsed;
     } else {
-      const end = Date.now();
-      const animTime = ((end - start) / 1000).toString();
-      log(`Time elapsed for animation: ${animTime}`);
+      const animTime = ((Date.now() - START) / 1000).toString();
+
+      console.log(`Time elapsed for animation: ${animTime}`);
     }
   }
 
@@ -107,28 +111,14 @@ function renderCars(map, subwayCars) {
 
 $(document).ready(() => {
   mapboxgl.accessToken = ACCESSTOKEN;
-  const map = new mapboxgl.Map({
-    container: 'subwaymap',
-    style: 'mapbox://styles/mapbox/light-v9',
-    center: [-73.983393, 40.788552],
-    dragRotate: false,
-    zoom: 10.84,
-  });
+
+  const map = new mapboxgl.Map(MAPBOX);
 
   map.on('load', () => {
     const socket = io.connect('localhost:5000');
 
-    const routeIDsList = [
-      'route-1..N03R',
-      'route-5..S03R',
-      'route-A..N04R',
-      'route-N..N20R',
-      'route-D..N05R',
-      'route-B..N46R',
-    ];
-
     $.when((
-      $.getJSON('/map_json', (mapData) => {
+      $.getJSON('/map_json', mapData => {
         /**
          * This is used because we have a second loop
          * that only adds layers for the chosen routes:
@@ -137,8 +127,9 @@ $(document).ready(() => {
          */
         const tempColorMap = {};
 
-        $.each(mapData, (mapKey, mapVal) => {
+        Object.entries(mapData).forEach(([mapKey, mapVal]) => {
           const routeID = 'route-'.concat(mapKey);
+
           tempColorMap[routeID] = mapVal.color;
 
           map.addSource(routeID, {
@@ -156,7 +147,7 @@ $(document).ready(() => {
           });
         });
 
-        $.each(routeIDsList, (index, key) => {
+        ROUTEIDS.forEach((key, index) => {
           map.addLayer({
             id: key,
             type: 'line',
@@ -172,11 +163,12 @@ $(document).ready(() => {
           });
         });
 
-        $.getJSON('/stops_json', (stopData) => {
-          const stopsFeatureData = $.map(stopData, (stopVal) => {
+        $.getJSON('/stops_json', stopData => {
+          const stopsFeatureData = Object.entries(stopData).map(([_, stopVal]) => {
             const name = stopVal.name;
             const coordinates = stopVal.coordinates.join(', ');
             const descriptionHTML = `<strong>${name}</strong><br><p>${coordinates}</p>`;
+
             const stopSource = {
               type: 'Feature',
               properties: {
@@ -213,7 +205,8 @@ $(document).ready(() => {
         });
       })
     )).then(() => {
-      socket.on('feed', (subwayCars) => {
+      socket.on('feed', subwayCars => {
+        console.log(subwayCars);
         renderCars(map, subwayCars);
       });
     }).then(() => {
@@ -225,18 +218,22 @@ $(document).ready(() => {
       closeOnClick: false,
     });
 
-    map.on('mousemove', (e) => {
-      const features = map.queryRenderedFeatures(e.point, { layers: ['stops'] });
+    map.on('mousemove', e => {
+      const features = map.queryRenderedFeatures(e.point, { layers : ['stops'] });
+
       map.getCanvas().style.cursor = (features.length) ? 'pointer' : '';
-      if (!features.length) {
+
+      if (features.length === 0) {
         popup.remove();
+
         return;
       }
 
       const feature = features[0];
+
       popup.setLngLat(feature.geometry.coordinates)
-          .setHTML(feature.properties.description)
-          .addTo(map);
+        .setHTML(feature.properties.description)
+        .addTo(map);
     });
   });
 });
