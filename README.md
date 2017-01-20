@@ -26,5 +26,5 @@ Live Subway is a project to provide real-time visualization of the NYC subways, 
     mapbox_key = '[Mapbox GL JS key]'
     ```
 7. create a `static_transit` directory in your root directory and add the static `.txt` files 
-8. run `python scripts/static.py` if needed to generate files containing useful static transit data
+8. run `python scripts/static.py -goap` if needed to generate files containing useful static transit data
 9. run `python app.py` and point browser to `localhost:5000` to test success  
