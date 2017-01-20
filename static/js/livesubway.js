@@ -58,11 +58,7 @@ function renderCars(map, subwayCars) {
     const animFrames = SPEED * Math.min(DURATION, rT);
 
     return [...Array(TOTALFRAMES).keys()].map((x, i) => {
-      let distance = d;
-
-      if (i < animFrames) {
-        distance = dT + (i / animSpeed) * remainingDistance;
-      }
+      const distance = i < animFrames ? dT + (i / animSpeed) * remainingDistance : d;
 
       const segment = turf.along(line, distance, 'miles');
 
@@ -138,6 +134,7 @@ $(document).ready(() => {
 
         Object.entries(mapData).forEach(([mapKey, mapVal]) => {
           const routeID = 'route-'.concat(mapKey);
+
           tempColorMap[routeID] = mapVal.color;
 
           map.addSource(routeID, {
