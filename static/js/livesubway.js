@@ -2,7 +2,6 @@ const SPEED = 60;
 const DURATION = 30;
 const TOTALFRAMES = SPEED * DURATION;
 const INTERVAL = 1000 / SPEED;
-const START = Date.now();
 
 const MAPBOX = {
   container: 'subwaymap',
@@ -32,6 +31,7 @@ const ROUTEIDS = [
 ];
 
 function renderCars(map, subwayCars) {
+  const START = Date.now();
   const lineTuple = subwayCars.map(subwayCar => {
     const line = {
       type : 'Feature',
@@ -64,7 +64,7 @@ function renderCars(map, subwayCars) {
 
       return segment.geometry.coordinates;
     });
-  }).reduce((x, y) => x.concat(y));
+  });
 
   const source = {
     type: 'geojson',
@@ -84,30 +84,25 @@ function renderCars(map, subwayCars) {
     map.addLayer(LAYER);
   }
 
-  let counter = 0;
-
   function animate() {
-    if (counter / INTERVAL < (SPEED * DURATION) - 1) {
+    const elapsed = Date.now() - START;
+    if (elapsed / INTERVAL < (SPEED * DURATION) - 1) {
       requestAnimationFrame(animate);
-
-      const elapsed = Date.now() - START;
 
       points.forEach((point, i) => {
         const animSteps = allAnimSteps[i];
 
-        point.geometry.coordinates = animSteps[Math.round(counter / INTERVAL)];
+        point.geometry.coordinates = animSteps[Math.round(elapsed / INTERVAL)];
       });
 
       map.getSource('subwayCars').setData({
         type: 'FeatureCollection',
         features: points,
       });
-
-      counter += elapsed;
     } else {
       const animTime = ((Date.now() - START) / 1000).toString();
 
-      console.log(`Time elapssed for animation: ${animTime}`);
+      console.log(`Time elapsed for animation: ${animTime}`);
     }
   }
 
@@ -212,7 +207,7 @@ $(document).ready(() => {
     )).then(() => {
       socket.on('feed', subwayCars => {
         console.log(subwayCars);
-        // renderCars(map, subwayCars);
+        renderCars(map, subwayCars);
       });
     }).then(() => {
       socket.emit('get_feed');
