@@ -6,11 +6,9 @@
    	<link href='https://api.tiles.mapbox.com/mapbox-gl-js/v0.26.0/mapbox-gl.css' rel='stylesheet' />
 
 	<script src='//api.tiles.mapbox.com/mapbox.js/plugins/turf/v2.0.0/turf.min.js' charset='utf-8'></script>
-   	<script src="https://code.jquery.com/jquery-3.1.1.min.js" integrity="sha256-hVVnYaiADRTO2PzUGmuLJr8BLUSjGIZsDYGmIJLv2b8=" crossorigin="anonymous"></script>
 	<script src="https://cdn.socket.io/socket.io-1.4.5.js"></script>
    	<script type="text/javascript">
-   		//$SCRIPT_ROOT = {{ request.script_root|tojson|safe }};
-		const ACCESSTOKEN = '{{ mapbox_key }}';
+  		const ACCESSTOKEN = '{{ mapbox_key }}';
    	</script>
 	</head>
 	<body>
