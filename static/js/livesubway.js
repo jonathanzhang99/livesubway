@@ -6,19 +6,23 @@ const TOTAL_FRAMERATE = SPEED * DURATION;
 const INTERVAL = 1000 / SPEED;
 const SAMPLE_POINTS = 20;
 
-const DB_NAME = "LIVESUBWAY_DB"
+const DB_NAME = "LIVESUBWAY_DB";
 const DB_ROUTES_STORE = "ROUTES_STORE";
 const DB_STOPS_STORE = "STOPS_STORE";
 
 const LEAFLET_TYLE_LAYER = "http://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png";
 const LEAFLET_ATTRIBUTION = `&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy;` +
-                            `<a href="http://cartodb.com/attributions">CartoDB</a>`
+  `<a href="http://cartodb.com/attributions">CartoDB</a>`;
 
-const LEAFLET_CENTER = [40.758896, -73.985130];
 const LEAFLET_ZOOM = 13;
 const LEAFLET_MAX_ZOOM = 18;
+const LEAFLET_CENTER = [40.758896, -73.985130];
+const LEAFLET_MAP_BOUND = [
+  [40.440957, -74.380673],
+  [40.938094, -73.676237]
+];
 
-const SUBWAY_ICON = `<i class="fa fa-subway" aria-hidden="true"></i>`
+const SUBWAY_ICON = `<i class="fa fa-dot-circle-o" aria-hidden="true"></i>`;
 
 const MAPBOX = {
   container: "subwaymap",
@@ -35,22 +39,6 @@ const LAYER = {
   paint: {
     "circle-radius": 4,
     "circle-color": "#000000",
-  },
-};
-
-const STOP_ATTR = {
-  id: "stops",
-  type: "circle",
-  source: "stops",
-  paint: {
-    "circle-radius": {
-      stops: [
-        [11, 3],
-        [14, 4],
-        [16, 5]
-      ],
-    },
-    "circle-color": "#ff3300",
   },
 };
 
@@ -162,7 +150,6 @@ const getJSON = (path, success, fail) => {
 
 const fetchMap = (fetcher, map, routes, finish) => {
   const renderRoutes = (routesData, cb) => {
-    console.log(routesData)
     const linesLayer = new L.geoJson(routesData).addTo(map);
 
     linesLayer.setStyle((feature) => {
@@ -184,40 +171,38 @@ const fetchMap = (fetcher, map, routes, finish) => {
 
   const renderStops = (stopData, cb) => {
     const stops = Object.entries(stopData).filter(([_, stopVal]) => {
-      return stopVal.name.toLowerCase().indexOf("2 av") === -1
+      return stopVal.name.toLowerCase().indexOf("2 av") === -1;
     }).map(([_, stopVal]) => stopVal);
 
     const stopNames = stops.map(stopVal => stopVal.name);
 
-    const subwayMarkerBorder = stops.map(stopVal => {
-      return L.circleMarker(stopVal.coordinates,{
-        color: "#D3D7D6",
-        opacity: 0.7,
-        fill: false,
-        radius: 9,
-        weight: 1.5
-      })
-    });
-
     const subwayMarkers = stops.map(stopVal => {
-      const stopMarker = L.divIcon({html: SUBWAY_ICON});
+      const stopMarker = L.divIcon({
+        html: SUBWAY_ICON
+      });
 
-      return L.marker(stopVal.coordinates, {icon: stopMarker});
+      return L.marker(stopVal.coordinates, {
+        icon: stopMarker
+      });
     });
 
-    const markers = subwayMarkers.concat(subwayMarkerBorder);
-
-    L.layerGroup(markers).addTo(map);
+    L.layerGroup(subwayMarkers).addTo(map);
 
     subwayMarkers.forEach((marker, index) => {
-      marker.on('mouseover', e => {
-        //open popup;
-        var popup = L.popup()
-         .setLatLng(e.latlng)
-         .setContent(`<strong>${stopNames[index]}</strong>`)
-         .openOn(map);
+      marker.on("mouseover", e => {
+        L.popup()
+          .setLatLng(e.latlng)
+          .setContent(`<strong>${stopNames[index]}</strong>`)
+          .openOn(map);
       });
-    })
+
+      marker.on("mouseover", e => {
+        L.popup()
+          .setLatLng(e.latlng)
+          .setContent(`<strong>${stopNames[index]}</strong>`)
+          .openOn(map);
+      });
+    });
 
     cb();
   };
@@ -248,18 +233,18 @@ class MapDB {
       storesPath.filter(x => db.objectStoreNames.contains(x)).forEach(x => {
         db.createObjectStore(DB_ROUTES_STORE);
       });
-    }
+    };
 
-    openRequest.onsuccess = function(e) {
+    openRequest.onsuccess = (e) => {
       console.log("Success!");
 
       this.db = e.target.result;
-    }
+    };
 
-    openRequest.onerror = function(e) {
+    openRequest.onerror = (e) => {
       console.log("Error");
       console.dir(e);
-    }
+    };
   }
 
   addRoutes(routes) {
@@ -268,26 +253,33 @@ class MapDB {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  const map = L.map('subwaymap').setView(LEAFLET_CENTER, LEAFLET_ZOOM);
+  const map = L.map("subwaymap").setView(LEAFLET_CENTER, LEAFLET_ZOOM);
 
-  map.options.minZoom = LEAFLET_ZOOM;
+  map.options.minZoom = LEAFLET_ZOOM - 1;
   map.options.maxZoom = LEAFLET_MAX_ZOOM;
 
-  const CartoDB_DarkMatter = L.tileLayer(LEAFLET_TYLE_LAYER, {
+  L.tileLayer(LEAFLET_TYLE_LAYER, {
     attribution: LEAFLET_ATTRIBUTION,
-    minZoom: LEAFLET_ZOOM,
+    minZoom: LEAFLET_ZOOM - 1,
     maxZoom: LEAFLET_MAX_ZOOM
   }).addTo(map);
 
+  const bounds = L.latLngBounds(LEAFLET_MAP_BOUND);
+
+  map.on("drag", () => {
+    map.panInsideBounds(bounds, {
+      animate: false
+    });
+  });
 
   const indexedDB = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB;
 
   const socket = io.connect("localhost:5000");
 
   // if (!indexedDB) {
-    fetchMap(getJSON, map, SUBWAY_ROUTES, () => {
-      socket.emit("get_feed");
-    });
+  fetchMap(getJSON, map, SUBWAY_ROUTES, () => {
+    socket.emit("get_feed");
+  });
   // } else {
   //   new MapDB();
   // }
@@ -296,10 +288,5 @@ document.addEventListener("DOMContentLoaded", () => {
 
   socket.on("feed", subwayCars => {
     renderCars(map, subwayCars);
-  });
-
-  const popup = new mapboxgl.Popup({
-    closeButton: false,
-    closeOnClick: false,
   });
 });
