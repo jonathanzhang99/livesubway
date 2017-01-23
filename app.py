@@ -11,20 +11,25 @@ import feed
 
 monkey_patch()
 
-JSON_DIR = "static/json/"
+JSON_DIR = "map_files/"
 PICKLE_DIR = ".cache/"
 
 app = Flask(__name__)
 socketio = SocketIO(app)
 feed_event = None
+
 with open(PICKLE_DIR + "graph.pkl", "rb") as graph_f, \
         open(PICKLE_DIR + "prev_stops.pkl", "rb") as prev_stops_f, \
         open(JSON_DIR + "shapes.json", "r") as shapes_f, \
-        open(JSON_DIR + "stops.json", "r") as stops_f:
+        open(JSON_DIR + "stops.json", "r") as stops_f, \
+        open(JSON_DIR + "routes.json", "r") as routes_f, \
+        open(JSON_DIR + "colors.json", "r") as colors_f:
     graph = pickle.load(graph_f)
     prev_stops = pickle.load(prev_stops_f)
     shapes = json.load(shapes_f)
     stops = json.load(stops_f)
+    routes = json.load(routes_f)
+    colors = json.load(colors_f)
 
 demos = [
     [
@@ -65,21 +70,31 @@ demos = [
     ]
 ]
 
-
 @app.route('/')
 def index():
-    return render_template("index.html", mapbox_key=mapbox_key)
+    return render_template("index.html", mapbox_key=mapbox_key, subway_routes=shapes.keys(), route_colors=colors)
 
 
-@app.route('/map_json')
-def map_json():
+@app.route('/map_json/<route>')
+def map_json(route):
     # Documentation for shapes.json:
     # shape_id: {
     #      sequence: number of points,
     #      color: route color,
     #      points: [[lon, lat],...,]
     # }
-    return jsonify(shapes)
+    return jsonify(shapes[route])
+
+
+@app.route('/map_geojson')
+def map_geojson():
+    # Documentation for shapes.json:
+    # shape_id: {
+    #      sequence: number of points,
+    #      color: route color,
+    #      points: [[lon, lat],...,]
+    # }
+    return jsonify(routes)
 
 
 @app.route('/stops_json')
@@ -98,6 +113,7 @@ def stops_json():
 @socketio.on('get_feed')
 def subway_cars():
     global feed_event
+
     if feed_event is None:
         feed_event = socketio.start_background_task(target=subway_cars_timer)
 

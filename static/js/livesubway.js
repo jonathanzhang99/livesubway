@@ -2,12 +2,23 @@
 
 const SPEED = 60;
 const DURATION = 30;
-const TOTALFRAMES = SPEED * DURATION;
+const TOTAL_FRAMERATE = SPEED * DURATION;
 const INTERVAL = 1000 / SPEED;
+const SAMPLE_POINTS = 20;
 
 const DB_NAME = "LIVESUBWAY_DB"
 const DB_ROUTES_STORE = "ROUTES_STORE";
 const DB_STOPS_STORE = "STOPS_STORE";
+
+const LEAFLET_TYLE_LAYER = "http://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png";
+const LEAFLET_ATTRIBUTION = `&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy;` +
+                            `<a href="http://cartodb.com/attributions">CartoDB</a>`
+
+const LEAFLET_CENTER = [40.758896, -73.985130];
+const LEAFLET_ZOOM = 13;
+const LEAFLET_MAX_ZOOM = 18;
+
+const SUBWAY_ICON = `<i class="fa fa-subway" aria-hidden="true"></i>`
 
 const MAPBOX = {
   container: "subwaymap",
@@ -26,15 +37,6 @@ const LAYER = {
     "circle-color": "#000000",
   },
 };
-
-const ROUTEIDS = [
-  "route-1..N03R",
-  "route-5..S03R",
-  "route-A..N04R",
-  "route-N..N20R",
-  "route-D..N05R",
-  "route-B..N46R",
-];
 
 const STOP_ATTR = {
   id: "stops",
@@ -78,7 +80,7 @@ const renderCars = (map, subwayCars) => {
     const animSpeed = SPEED * rT;
     const animFrames = SPEED * Math.min(DURATION, rT);
 
-    return [...Array(TOTALFRAMES).keys()].map((x, i) => {
+    return [...Array(TOTAL_FRAMERATE).keys()].map((x, i) => {
       const distance = i < animFrames ? dT + (i / animSpeed) * remainingDistance : d;
 
       const segment = turf.along(line, distance, "miles");
@@ -147,7 +149,7 @@ const getJSON = (path, success, fail) => {
   xmlhttp.onreadystatechange = () => {
     if (xmlhttp.readyState === XMLHttpRequest.DONE) {
       if (xmlhttp.status === 200) {
-        success(xmlhttp.responseText);
+        success(JSON.parse(xmlhttp.responseText));
       } else {
         fail();
       }
@@ -158,95 +160,72 @@ const getJSON = (path, success, fail) => {
   xmlhttp.send();
 };
 
-const fetchMap = (fetcher, map, finish) => {
-  const renderRoutes = (strMapData, cb) => {
-    const mapData = JSON.parse(strMapData);
-    const colorMap = Object.entries(mapData).reduce((acc, [mapKey, mapVal]) => {
-      const routeID = "route-".concat(mapKey);
+const fetchMap = (fetcher, map, routes, finish) => {
+  const renderRoutes = (routesData, cb) => {
+    console.log(routesData)
+    const linesLayer = new L.geoJson(routesData).addTo(map);
 
-      acc[routeID] = mapVal.color;
-
-      map.addSource(routeID, {
-        type: "geojson",
-        data: {
-          type: "Feature",
-          properties: {
-            color: mapVal.color,
-          },
-          geometry: {
-            type: "LineString",
-            coordinates: mapVal.points,
-          },
-        },
-      });
-
-      return acc;
-    }, {});
-
-    ROUTEIDS.forEach(key => {
-      map.addLayer({
-        id: key,
-        type: "line",
-        source: key,
-        layout: {
-          "line-join": "round",
-          "line-cap": "round",
-        },
-        paint: {
-          "line-color": colorMap[key],
-          "line-width": 3,
-        },
-      });
-    });
-
-    cb;
-  };
-
-  const renderStops = (strStopsData, cb) => {
-    const stopData = JSON.parse(strStopsData);
-
-    const stopsFeatureData = Object.entries(stopData).map(([_, stopVal]) => {
-      const name = stopVal.name;
-      const coordinates = stopVal.coordinates.join(", ");
-      const descriptionHTML = `<strong>${name}</strong><br><p>${coordinates}</p>`;
-
-      const stopSource = {
-        type: "Feature",
-        properties: {
-          description: descriptionHTML,
-        },
-        geometry: {
-          type: "Point",
-          coordinates: stopVal.coordinates,
-        },
+    linesLayer.setStyle((feature) => {
+      return {
+        "weight": 3,
+        "opacity": 1,
+        "color": SUBWAY_COLORS[feature.properties.route_id]
       };
-
-      return stopSource;
     });
-
-    map.addSource("stops", {
-      type: "geojson",
-      data: {
-        type: "FeatureCollection",
-        features: stopsFeatureData,
-      },
-    });
-
-    map.addLayer(STOP_ATTR);
 
     cb();
   };
 
   const routePromise = new Promise((resolve, reject) => {
-    fetcher("/map_json", (mapData) => {
-      renderRoutes(mapData, resolve);
-    }, reject());
+    fetcher("/map_geojson", (stopData) => {
+      renderRoutes(stopData, resolve);
+    }, reject);
   });
+
+  const renderStops = (stopData, cb) => {
+    const stops = Object.entries(stopData).filter(([_, stopVal]) => {
+      return stopVal.name.toLowerCase().indexOf("2 av") === -1
+    }).map(([_, stopVal]) => stopVal);
+
+    const stopNames = stops.map(stopVal => stopVal.name);
+
+    const subwayMarkerBorder = stops.map(stopVal => {
+      return L.circleMarker(stopVal.coordinates,{
+        color: "#D3D7D6",
+        opacity: 0.7,
+        fill: false,
+        radius: 9,
+        weight: 1.5
+      })
+    });
+
+    const subwayMarkers = stops.map(stopVal => {
+      const stopMarker = L.divIcon({html: SUBWAY_ICON});
+
+      return L.marker(stopVal.coordinates, {icon: stopMarker});
+    });
+
+    const markers = subwayMarkers.concat(subwayMarkerBorder);
+
+    L.layerGroup(markers).addTo(map);
+
+    subwayMarkers.forEach((marker, index) => {
+      marker.on('mouseover', e => {
+        //open popup;
+        var popup = L.popup()
+         .setLatLng(e.latlng)
+         .setContent(`<strong>${stopNames[index]}</strong>`)
+         .openOn(map);
+      });
+    })
+
+    cb();
+  };
 
   const stopPromise = new Promise((resolve, reject) => {
     fetcher("/stops_json", (stopData) => {
       renderStops(stopData, resolve);
-    }, reject());
+    }, reject);
   });
 
   Promise.all([routePromise, stopPromise])
@@ -257,6 +236,8 @@ const fetchMap = (fetcher, map, finish) => {
 
 class MapDB {
   constructor() {
+    const storesPath = [DB_ROUTES_STORE, DB_STOPS_STORE];
+
     const openRequest = indexedDB.open(DB_NAME, 1);
 
     openRequest.onupgradeneeded = function(e) {
@@ -264,70 +245,61 @@ class MapDB {
 
       const db = e.target.result;
 
-      [DB_ROUTES_STORE, DB_STOPS_STORE].filter(x => !db.objectStoreNames.contains(x)).forEach(x => {
+      storesPath.filter(x => db.objectStoreNames.contains(x)).forEach(x => {
         db.createObjectStore(DB_ROUTES_STORE);
       });
     }
 
     openRequest.onsuccess = function(e) {
-        console.log("Success!");
-        this.db = e.target.result;
+      console.log("Success!");
+
+      this.db = e.target.result;
     }
 
     openRequest.onerror = function(e) {
-        console.log("Error");
-        console.dir(e);
+      console.log("Error");
+      console.dir(e);
     }
+  }
+
+  addRoutes(routes) {
+
   }
 }
 
+document.addEventListener("DOMContentLoaded", () => {
+  const map = L.map('subwaymap').setView(LEAFLET_CENTER, LEAFLET_ZOOM);
+
+  map.options.minZoom = LEAFLET_ZOOM;
+  map.options.maxZoom = LEAFLET_MAX_ZOOM;
+
+  const CartoDB_DarkMatter = L.tileLayer(LEAFLET_TYLE_LAYER, {
+    attribution: LEAFLET_ATTRIBUTION,
+    minZoom: LEAFLET_ZOOM,
+    maxZoom: LEAFLET_MAX_ZOOM
+  }).addTo(map);
 
 
-window.onload = () => {
-  mapboxgl.accessToken = ACCESSTOKEN;
+  const indexedDB = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB;
 
-  const map = new mapboxgl.Map(MAPBOX);
+  const socket = io.connect("localhost:5000");
 
-  map.on("load", () => {
-    const indexedDB = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB;
-
-    const socket = io.connect("localhost:5000");
-
-    if (!indexedDB) {
-      fetchMap(getJSON, map, () => {
-        socket.emit("get_feed");
-      });
-    } else {
-
-    }
-
-    socket.emit("get_feed");
-
-    socket.on("feed", subwayCars => {
-      renderCars(map, subwayCars);
+  // if (!indexedDB) {
+    fetchMap(getJSON, map, SUBWAY_ROUTES, () => {
+      socket.emit("get_feed");
     });
+  // } else {
+  //   new MapDB();
+  // }
 
-    const popup = new mapboxgl.Popup({
-      closeButton: false,
-      closeOnClick: false,
-    });
+  socket.emit("get_feed");
 
-    map.on("mousemove", e => {
-      const features = map.queryRenderedFeatures(e.point, { layers : ["stops"] });
-
-      map.getCanvas().style.cursor = (features.length) ? "pointer" : "";
-
-      if (features.length === 0) {
-        popup.remove();
-
-        return;
-      }
-
-      const feature = features[0];
-
-      popup.setLngLat(feature.geometry.coordinates)
-        .setHTML(feature.properties.description)
-        .addTo(map);
-    });
+  socket.on("feed", subwayCars => {
+    renderCars(map, subwayCars);
   });
-};
+
+  const popup = new mapboxgl.Popup({
+    closeButton: false,
+    closeOnClick: false,
+  });
+});
