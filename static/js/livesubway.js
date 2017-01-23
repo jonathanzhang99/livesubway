@@ -122,7 +122,7 @@ const renderCars = (map, subwayCars) => {
       points.forEach((point, i) => {
         const animSteps = allAnimSteps[i];
 
-        point.geometry.coordinates = animSteps[Math.round(counter / INTERVAL)];
+        point.geometry.coordinates = animSteps[Math.round(elapsed / INTERVAL)];
       });
 
       map.getSource("subwayCars").setData({
