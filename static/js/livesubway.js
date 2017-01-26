@@ -42,7 +42,7 @@ const LAYER = {
   },
 };
 
-const renderCars = (map, subwayCars) => {
+const animateTrains = (map, subwayCars) => {
   const lineTuple = subwayCars.map(subwayCar => {
     const line = {
       type: "Feature",
@@ -85,50 +85,40 @@ const renderCars = (map, subwayCars) => {
     },
   };
 
-  if (map.getSource("subwayCars") === undefined) {
-    map.addSource("subwayCars", source);
-  } else {
-    map.getSource("subwayCars").setData(source.data);
-  }
+  // const start = Date.now();
 
-  if (map.getLayer("subwayCars") === undefined) {
-    map.addLayer(LAYER);
-  }
+  // let then = start;
+  // let counter = 0;
 
-  const start = Date.now();
+  // const animate = () => {
+  //   if (counter / INTERVAL < (SPEED * DURATION) - 1) {
+  //     const now = Date.now();
+  //     const elapsed = now - then;
 
-  let then = start;
-  let counter = 0;
+  //     then = now;
 
-  const animate = () => {
-    if (counter / INTERVAL < (SPEED * DURATION) - 1) {
-      const now = Date.now();
-      const elapsed = now - then;
+  //     points.forEach((point, i) => {
+  //       const animSteps = allAnimSteps[i];
 
-      then = now;
+  //       point.geometry.coordinates = animSteps[Math.round(elapsed / INTERVAL)];
+  //     });
 
-      points.forEach((point, i) => {
-        const animSteps = allAnimSteps[i];
+  //     map.getSource("subwayCars").setData({
+  //       type: "FeatureCollection",
+  //       features: points,
+  //     });
 
-        point.geometry.coordinates = animSteps[Math.round(elapsed / INTERVAL)];
-      });
+  //     counter += elapsed;
 
-      map.getSource("subwayCars").setData({
-        type: "FeatureCollection",
-        features: points,
-      });
+  //     requestAnimationFrame(animate);
+  //   } else {
+  //     const animTime = ((Date.now() - start) / 1000).toString();
 
-      counter += elapsed;
+  //     console.log(`Time elapsed for animation: ${animTime}`);
+  //   }
+  // };
 
-      requestAnimationFrame(animate);
-    } else {
-      const animTime = ((Date.now() - start) / 1000).toString();
-
-      console.log(`Time elapsed for animation: ${animTime}`);
-    }
-  };
-
-  animate();
+  // animate();
 };
 
 const getJSON = (path, success, fail) => {
@@ -189,18 +179,9 @@ const fetchMap = (fetcher, map, routes, finish) => {
     L.layerGroup(subwayMarkers).addTo(map);
 
     subwayMarkers.forEach((marker, index) => {
+      marker.bindPopup(`<strong>${stopNames[index]}</strong>`);
       marker.on("mouseover", e => {
-        L.popup()
-          .setLatLng(e.latlng)
-          .setContent(`<strong>${stopNames[index]}</strong>`)
-          .openOn(map);
-      });
-
-      marker.on("mouseover", e => {
-        L.popup()
-          .setLatLng(e.latlng)
-          .setContent(`<strong>${stopNames[index]}</strong>`)
-          .openOn(map);
+        marker.openPopup();
       });
     });
 
@@ -287,6 +268,6 @@ document.addEventListener("DOMContentLoaded", () => {
   socket.emit("get_feed");
 
   socket.on("feed", subwayCars => {
-    renderCars(map, subwayCars);
+    animateTrains(map, subwayCars);
   });
 });

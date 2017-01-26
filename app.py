@@ -126,6 +126,7 @@ def subway_cars_timer():
     while True:
         socketio.sleep(30)
         demo_emit = demos[counter % len(demos)]
+        print demo_emit
         print "Emitted."
         socketio.emit('feed', demo_emit)
         counter += 1
