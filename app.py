@@ -90,19 +90,11 @@ demos = [
     ]
 ]
 
-_t_hash = feed.train_id_hash()
+# _t_hash = feed.train_id_hash()
 
 
 @app.route('/')
 def index():
-    # entities = []
-    # for entity in feed.current_feed.entity:
-    #     route_id = entity.trip_update.trip.route_id
-    #     vehicle_id = entity.vehicle.trip.route_id
-    #     if ((route_id != "" and route_id == "5") or
-    #        (vehicle_id != "" and vehicle_id == "5")):
-
-    #         entities.append(entity)
 
     return render_template("index.html", mapbox_key=mapbox_key)
 
@@ -132,14 +124,14 @@ def stops_json():
         return jsonify(json_input)
 
 
-@socketio.on('get_feed')
-def subway_cars():
-    global feed_event
-    if feed_event is None:
-        feed_event = socketio.start_background_task(target=subway_cars_timer)
+# @socketio.on('get_feed')
+# def subway_cars():
+#     global feed_event
+#     if feed_event is None:
+#         feed_event = socketio.start_background_task(target=subway_cars_timer)
 
-    print "Emitted."
-    emit('feed', demos[0])
+#     print "Emitted."
+#     emit('feed', demos[0])
 
 
 def subway_cars_timer():
