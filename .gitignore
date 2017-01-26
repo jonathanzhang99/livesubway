@@ -7,8 +7,10 @@
 shapes.json
 stops.json
 shape_indices.json
+
 API_KEYS.py
 
+.cache
 .DS_Store
 .idea
 .ipynb_checkpoints
@@ -16,3 +18,4 @@ API_KEYS.py
 .vscode
 
 static_transit
+static/json
