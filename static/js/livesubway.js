@@ -6,6 +6,11 @@ const TOTAL_FRAMERATE = SPEED * DURATION;
 const INTERVAL = 1000 / SPEED;
 const SAMPLE_POINTS = 20;
 
+const SERVER_DELAY = 30;
+const ACTIVE_CARS = {
+
+};
+
 const DB_NAME = "LIVESUBWAY_DB";
 const DB_ROUTES_STORE = "ROUTES_STORE";
 const DB_STOPS_STORE = "STOPS_STORE";
@@ -15,14 +20,14 @@ const LEAFLET_ATTRIBUTION = `&copy; <a href="http://www.openstreetmap.org/copyri
   `<a href="http://cartodb.com/attributions">CartoDB</a>`;
 
 const LEAFLET_ZOOM = 13;
-const LEAFLET_MAX_ZOOM = 18;
+const LEAFLET_MAX_ZOOM = 20;
 const LEAFLET_CENTER = [40.758896, -73.985130];
 const LEAFLET_MAP_BOUND = [
   [40.440957, -74.380673],
   [40.938094, -73.676237]
 ];
 
-const SUBWAY_ICON = `<i class="fa fa-dot-circle-o" aria-hidden="true"></i>`;
+const SUBWAY_ICON = `<i class="fa fa-dot-circle-o" aria-hidden="true" style="visibility:hidden;"></i>`;
 
 const MAPBOX = {
   container: "subwaymap",
@@ -41,6 +46,99 @@ const LAYER = {
     "circle-color": "#000000",
   },
 };
+
+// _________________________________________
+// START OF ANIMATION SEGMENT
+
+
+//TODO: Does not need to be hardcoded but will remain
+//      as such until a later date
+const ActiveTrains = {
+  "1": [],
+  "2": [],
+  "3": [],
+  "4": [],
+  "5": [],
+  "6": [],
+  "B": [],
+  "D": [],
+  "F": [],
+  "M": [],
+  "A": [],
+  "C": [],
+  "E": [],
+  "G": [],
+  "J": [],
+  "Z": [],
+  "L": [],
+  "N": [],
+  "Q": [],
+  "R": [],
+  "S": [],
+  "7": [],
+  "SIR": [],
+};
+
+// Finds the distance between two indices on the geojson line.
+// Adds up the individual segments until the end segment.
+// All units are in miles
+const findDistance = (startindex, endindex, coordmap) => {
+  let dist = 0;
+  while (startindex !== endindex){
+    dist += turf.along(coordmap[startindex], coordmap[++startindex], "miles");
+  }
+  return dist;
+};
+
+// Calculates the speed of the train required to get 
+// from <startindex:int> to <endindex:int> along the specific line
+// within SERVER_DELAY seconds.
+const calcSpeed = (startindex, endindex, coordmap) => {
+  return findDistance(startindex, endindex, coordmap)/SERVER_DELAY;
+ };
+
+// Creates a train at the starting location of the
+// given <line:string> in <delay:int> seconds.
+// <train_data:Object>: {
+//  id:               trip_id, (unique)
+//  line:             string,
+//  speed:            int,
+//  current_location: [coord]
+// }
+const initTrain = (delay, train_data) => {
+  setTimeout(delay, () => {
+    train_data
+    ActiveTrains[train_data.line].push(train_data);
+
+  });
+};
+
+const delTrain = (delay, train_data) => {
+  setTimeout(delay, () => {
+    delete ActiveTrains[train_data.line][train_data.id];
+  });
+};
+
+// <subwayTrainSched:Object>: {
+//  subwayTrain: Object
+// }
+// subwayTrain: {
+//  line:           string,
+//  train_id:       trip_id,
+//  initialized:    bool,
+//  deleted:        bool,
+//  action_time:    Time
+//   
+// }
+// const update = subwayTrainSched => {
+//   subwayTrainSched.forEach(subwayTrain => {
+//     if (!subwayTrain.initialized){
+//       initTrain( subwayTrain);
+//     }
+//   });
+
+
+// };
 
 const animateTrains = (map, subwayCars) => {
   const lineTuple = subwayCars.map(subwayCar => {
@@ -120,6 +218,8 @@ const animateTrains = (map, subwayCars) => {
 
   // animate();
 };
+// _________________________________________
+// END OF ANIMATION SEGMENT
 
 const getJSON = (path, success, fail) => {
   const xmlhttp = new XMLHttpRequest();
@@ -140,12 +240,13 @@ const getJSON = (path, success, fail) => {
 
 const fetchMap = (fetcher, map, routes, finish) => {
   const renderRoutes = (routesData, cb) => {
+
     const linesLayer = new L.geoJson(routesData).addTo(map);
 
     linesLayer.setStyle((feature) => {
       return {
         "weight": 3,
-        "opacity": 1,
+        "opacity": feature.properties.route_id === "2" ? 1 : 0, 
         "color": SUBWAY_COLORS[feature.properties.route_id]
       };
     });

@@ -70,6 +70,7 @@ demos = [
     ]
 ]
 
+
 @app.route('/')
 def index():
     return render_template("index.html", mapbox_key=mapbox_key, subway_routes=shapes.keys(), route_colors=colors)
