@@ -6,7 +6,7 @@ const TOTAL_FRAMERATE = SPEED * DURATION;
 const INTERVAL = 1000 / SPEED;
 const SAMPLE_POINTS = 20;
 
-const SERVER_DELAY = 30;
+const SERVER_DELAY = 5;
 const ACTIVE_CARS = {
 
 };
@@ -20,7 +20,7 @@ const LEAFLET_ATTRIBUTION = `&copy; <a href="http://www.openstreetmap.org/copyri
   `<a href="http://cartodb.com/attributions">CartoDB</a>`;
 
 const LEAFLET_ZOOM = 13;
-const LEAFLET_MAX_ZOOM = 20;
+const LEAFLET_MAX_ZOOM = 25;
 const LEAFLET_CENTER = [40.758896, -73.985130];
 const LEAFLET_MAP_BOUND = [
   [40.440957, -74.380673],
@@ -107,7 +107,7 @@ const calcSpeed = (startindex, endindex, coordmap) => {
 // }
 const initTrain = (delay, train_data) => {
   setTimeout(delay, () => {
-    train_data
+    // train_data
     ActiveTrains[train_data.line].push(train_data);
 
   });
@@ -125,17 +125,20 @@ const delTrain = (delay, train_data) => {
 // subwayTrain: {
 //  line:           string,
 //  train_id:       trip_id,
-//  initialized:    bool,
-//  deleted:        bool,
-//  action_time:    Time
+//  initialize:     bool,
+//  delete:         bool,
+//  move:           bool,
+//  action_time:    Time,
+//  end_loc:        index,
 //   
 // }
-// const update = subwayTrainSched => {
-//   subwayTrainSched.forEach(subwayTrain => {
-//     if (!subwayTrain.initialized){
-//       initTrain( subwayTrain);
-//     }
-//   });
+const update = subwayTrainSched => {
+  subwayTrainSched.forEach(subwayTrain => {
+    if (!subwayTrain.initialized){
+      initTrain( subwayTrain);
+    }
+  });
+};
 
 
 // };
@@ -246,7 +249,7 @@ const fetchMap = (fetcher, map, routes, finish) => {
     linesLayer.setStyle((feature) => {
       return {
         "weight": 3,
-        "opacity": feature.properties.route_id === "2" ? 1 : 0, 
+        "opacity": 1, //feature.properties.route_id === "2" ? 1 : 0, 
         "color": SUBWAY_COLORS[feature.properties.route_id]
       };
     });
@@ -256,6 +259,7 @@ const fetchMap = (fetcher, map, routes, finish) => {
 
   const routePromise = new Promise((resolve, reject) => {
     fetcher("/map_geojson", (stopData) => {
+
       renderRoutes(stopData, resolve);
     }, reject);
   });
